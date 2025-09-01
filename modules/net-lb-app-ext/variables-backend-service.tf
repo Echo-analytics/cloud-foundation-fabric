@@ -19,6 +19,8 @@
 variable "backend_service_configs" {
   description = "Backend service level configuration."
   type = map(object({
+    name                            = optional(string)
+    description                     = optional(string, "Terraform managed.")
     affinity_cookie_ttl_sec         = optional(number)
     compression_mode                = optional(string)
     connection_draining_timeout_sec = optional(number)
@@ -27,6 +29,7 @@ variable "backend_service_configs" {
     enable_cdn                      = optional(bool)
     health_checks                   = optional(list(string), ["default"])
     log_sample_rate                 = optional(number)
+    locality_lb_policy              = optional(string)
     port_name                       = optional(string)
     project_id                      = optional(string)
     protocol                        = optional(string)
@@ -36,6 +39,7 @@ variable "backend_service_configs" {
     backends = list(object({
       # group renamed to backend
       backend         = string
+      preferred       = optional(bool, false)
       balancing_mode  = optional(string, "UTILIZATION")
       capacity_scaler = optional(number, 1)
       description     = optional(string, "Terraform managed.")
@@ -97,10 +101,19 @@ variable "backend_service_configs" {
       }))
     }))
     iap_config = optional(object({
-      oauth2_client_id            = string
-      oauth2_client_secret        = string
+      oauth2_client_id            = optional(string)
+      oauth2_client_secret        = optional(string)
       oauth2_client_secret_sha256 = optional(string)
     }))
+    locality_lb_policies = optional(list(object({
+      policy = optional(object({
+        name = string
+      }))
+      custom_policy = optional(object({
+        name = string
+        data = optional(string)
+      }))
+    })))
     outlier_detection = optional(object({
       consecutive_errors                    = optional(number)
       consecutive_gateway_failure           = optional(number)
@@ -137,7 +150,9 @@ variable "backend_service_configs" {
       for backend_service in values(var.backend_service_configs) : contains(
         [
           "NONE", "CLIENT_IP", "CLIENT_IP_NO_DESTINATION",
-          "CLIENT_IP_PORT_PROTO", "CLIENT_IP_PROTO"
+          "CLIENT_IP_PORT_PROTO", "CLIENT_IP_PROTO",
+          "GENERATED_COOKIE", "HEADER_FIELD", "HTTP_COOKIE",
+          "STRONG_COOKIE_AFFINITY"
         ],
         coalesce(backend_service.session_affinity, "NONE")
       )
@@ -152,5 +167,29 @@ variable "backend_service_configs" {
       )]
     ]))
     error_message = "When specified, balancing mode needs to be 'RATE' or 'UTILIZATION'."
+  }
+  validation {
+    condition = alltrue([
+      for backend_service in values(var.backend_service_configs) :
+      (backend_service.locality_lb_policy == null ? true :
+        contains(
+          [
+            "ROUND_ROBIN", "LEAST_REQUEST", "RING_HASH", "RANDOM",
+            "ORIGINAL_DESTINATION", "MAGLEV"
+          ],
+          backend_service.locality_lb_policy
+      ))
+    ])
+    error_message = "When specified, locality lb policy must be one of : 'ROUND_ROBIN', 'LEAST_REQUEST', 'RING_HASH', 'RANDOM', 'ORIGINAL_DESTINATION', 'MAGLEV', 'WEIGHTED_MAGLEV'."
+  }
+  validation {
+    condition = alltrue(flatten([
+      for backend_service in values(var.backend_service_configs) : [
+        for llp in coalesce(backend_service.locality_lb_policies, []) : (
+          ((llp.policy != null && llp.custom_policy == null) || (llp.policy == null && llp.custom_policy != null))
+        )
+      ]
+    ]))
+    error_message = "When specified, all locality lb polcies must have EITHER policy or custom_policy filled, not both."
   }
 }

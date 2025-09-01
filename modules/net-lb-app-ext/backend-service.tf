@@ -49,8 +49,8 @@ resource "google_compute_backend_service" "default" {
     ? var.project_id
     : each.value.project_id
   )
-  name                            = "${var.name}-${each.key}"
-  description                     = var.description
+  name                            = coalesce(each.value.name, "${var.name}-${each.key}")
+  description                     = each.value.description
   affinity_cookie_ttl_sec         = each.value.affinity_cookie_ttl_sec
   compression_mode                = each.value.compression_mode
   connection_draining_timeout_sec = each.value.connection_draining_timeout_sec
@@ -60,6 +60,7 @@ resource "google_compute_backend_service" "default" {
   health_checks = length(each.value.health_checks) == 0 ? null : [
     for k in each.value.health_checks : lookup(local.hc_ids, k, k)
   ]
+  locality_lb_policy    = (each.value.locality_lb_policies == null ? each.value.locality_lb_policy : null)
   load_balancing_scheme = var.use_classic_version ? "EXTERNAL" : "EXTERNAL_MANAGED"
   port_name = (
     each.value.port_name == null
@@ -77,6 +78,7 @@ resource "google_compute_backend_service" "default" {
     for_each = { for b in coalesce(each.value.backends, []) : b.backend => b }
     content {
       group           = lookup(local.group_ids, backend.key, backend.key)
+      preference      = backend.value.preferred ? "PREFERRED" : null
       balancing_mode  = backend.value.balancing_mode # UTILIZATION, RATE
       capacity_scaler = backend.value.capacity_scaler
       description     = backend.value.description
@@ -211,6 +213,25 @@ resource "google_compute_backend_service" "default" {
     content {
       enable      = true
       sample_rate = each.value.log_sample_rate
+    }
+  }
+
+  dynamic "locality_lb_policies" {
+    for_each = (each.value.locality_lb_policies == null ? [] : each.value.locality_lb_policies)
+    content {
+      dynamic "policy" {
+        for_each = (locality_lb_policies.value.policy != null ? locality_lb_policies.value.policy : {})
+        content {
+          name = policy.value
+        }
+      }
+      dynamic "custom_policy" {
+        for_each = (locality_lb_policies.value.custom_policy != null ? locality_lb_policies.value.custom_policy : {})
+        content {
+          name = custom_policy.value
+          data = custom_policy.value.data
+        }
+      }
     }
   }
 

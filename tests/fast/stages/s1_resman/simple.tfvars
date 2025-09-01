@@ -1,3 +1,72 @@
+# stage variables
+
+fast_addon = {
+  ngfw = {
+    parent_stage = "2-networking"
+  }
+}
+fast_stage_2 = {
+  # replicate one stage 2 via tfvars so as to check CI/CD configuration
+  project-factory = {
+    short_name = "pf"
+    cicd_config = {
+      identity_provider = "gh-test"
+      repository = {
+        name   = "cloud-foundation-fabric/1-resman"
+        branch = "main"
+      }
+      workflows_config = {
+        extra_files = [
+          "99-user.auto.tfvars.json"
+        ]
+      }
+    }
+    organization_config = {
+      iam_bindings_additive = {
+        sa_pf_conditional_org_policy = {
+          member = "rw"
+          role   = "roles/orgpolicy.policyAdmin"
+          condition = {
+            title       = "org_policy_tag_pf_scoped"
+            description = "Org policy tag scoped grant for project factory."
+            expression  = "resource.matchTag('$${organization.id}/$${tag_names.context}', 'project-factory')"
+          }
+        }
+      }
+    }
+  }
+}
+tags = {
+  context = {
+    values = {
+      data-platform = {}
+      gcve          = {}
+      gke           = {}
+      nsec          = {}
+      sandbox       = {}
+    }
+  }
+  environment = {
+    values = {
+      development = {
+        iam = {
+          "roles/resourcemanager.tagUser"   = ["gcve-dev-rw"]
+          "roles/resourcemanager.tagViewer" = ["gcve-dev-ro"]
+        }
+      }
+    }
+  }
+}
+top_level_folders = {
+  tenants = {
+    name              = "Tenants"
+    iam_by_principals = {}
+  }
+  shared = {
+    name = "Shared Infrastructure"
+  }
+}
+
 # globals
 
 billing_account = {
@@ -69,8 +138,11 @@ automation = {
 custom_roles = {
   # organization_iam_admin = "organizations/123456789012/roles/organizationIamAdmin",
   billing_viewer                  = "organizations/123456789012/roles/billingViewer"
+  dns_zone_binder                 = "organizations/123456789012/roles/dnsZoneBinder"
   gcve_network_admin              = "organizations/123456789012/roles/gcveNetworkAdmin"
   gcve_network_viewer             = "organizations/123456789012/roles/gcveNetworkViewer"
+  kms_key_encryption_admin        = "organizations/123456789012/roles/kmsKeyEncryptionAdmin"
+  kms_key_viewer                  = "organizations/123456789012/roles/kmsKeyViewer"
   network_firewall_policies_admin = "organizations/123456789012/roles/networkFirewallPoliciesAdmin"
   ngfw_enterprise_admin           = "organizations/123456789012/roles/ngfwEnterpriseAdmin"
   ngfw_enterprise_viewer          = "organizations/123456789012/roles/ngfwEnterpriseViewer"
@@ -81,72 +153,4 @@ custom_roles = {
 }
 logging = {
   project_id = "fast-prod-log-audit-0"
-}
-
-# stage variables
-
-fast_addon = {
-  ngfw = {
-    parent_stage = "2-networking"
-  }
-}
-fast_stage_2 = {
-  networking = {
-    cicd_config = {
-      identity_provider = "gh-test"
-      repository = {
-        branch = "main"
-        name   = "test/00-networking"
-        type   = "github"
-      }
-    }
-    folder_config = {
-      parent_id = "shared"
-    }
-  }
-  security = {
-    cicd_config = {
-      identity_provider = "gl-test"
-      repository = {
-        name = "test/00-security"
-        type = "gitlab"
-      }
-    }
-  }
-}
-tags = {
-  context = {
-    values = {
-      data-platform = {}
-      gcve          = {}
-      gke           = {}
-      nsec          = {}
-      sandbox       = {}
-    }
-  }
-  environment = {
-    values = {
-      development = {
-        iam = {
-          "roles/resourcemanager.tagUser"   = ["project-factory-dev"]
-          "roles/resourcemanager.tagViewer" = ["project-factory-dev-r"]
-        }
-      }
-      production = {
-        iam = {
-          "roles/resourcemanager.tagUser"   = ["project-factory-prod"]
-          "roles/resourcemanager.tagViewer" = ["project-factory-prod-r"]
-        }
-      }
-    }
-  }
-}
-top_level_folders = {
-  tenants = {
-    name              = "Tenants"
-    iam_by_principals = {}
-  }
-  shared = {
-    name = "Shared Infrastructure"
-  }
 }

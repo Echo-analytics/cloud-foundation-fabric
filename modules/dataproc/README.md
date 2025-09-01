@@ -181,7 +181,7 @@ module "processing-dp-cluster" {
     }
   }
 }
-# tftest modules=6 resources=28 e2e
+# tftest modules=6 resources=29 e2e
 ```
 
 ### Cluster configuration on GKE
@@ -242,7 +242,7 @@ module "processing-dp-cluster" {
     }
   }
 }
-# tftest modules=4 resources=6 fixtures=fixtures/gke-cluster-standard.tf e2e
+# tftest modules=5 resources=9 fixtures=fixtures/gke-cluster-standard.tf
 ```
 
 ## IAM
