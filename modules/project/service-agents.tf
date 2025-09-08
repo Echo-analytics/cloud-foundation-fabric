@@ -88,7 +88,7 @@ locals {
         "networkactions", "prod-bigqueryomni", "scc-notification", "securitycenter",
         "aiplatform-ft", "aiplatform-cc", "aiplatform-re", "vertex-bp", "vertex-eval",
         "vertex-ex", "vertex-ex-cc", "vertex-mm", "vertex-nb", "vertex-op", "vertex-rag",
-        "vertex-shtune", "vertex-tune",
+        "vertex-shtune", "vertex-tune", "notebooks-vm", "vertex-moss-ft"
       ], agent.name)
     ])
   }
