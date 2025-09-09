@@ -47,6 +47,12 @@ variable "custom_roles" {
   nullable    = false
 }
 
+variable "default_network_tier" {
+  description = "Default compute network tier for the project."
+  type        = string
+  default     = null
+}
+
 variable "default_service_account" {
   description = "Project default service account setting: can be one of `delete`, `deprivilege`, `disable`, or `keep`."
   default     = "keep"
@@ -59,7 +65,6 @@ variable "default_service_account" {
     error_message = "Only `delete`, `deprivilege`, `disable`, or `keep` are supported."
   }
 }
-
 
 variable "deletion_policy" {
   description = "Deletion policy setting for this project."
@@ -85,9 +90,13 @@ variable "factories_config" {
     observability = optional(string)
     org_policies  = optional(string)
     quotas        = optional(string)
+    tags          = optional(string)
     context = optional(object({
+      iam_principals        = optional(map(string), {})
       notification_channels = optional(map(string), {})
       org_policies          = optional(map(map(string)), {})
+      tag_keys              = optional(map(string), {})
+      tag_values            = optional(map(string), {})
     }), {})
   })
   nullable = false
@@ -160,10 +169,24 @@ variable "prefix" {
   }
 }
 
-variable "project_create" {
-  description = "Create project. When set to false, uses a data source to reference existing project."
-  type        = bool
-  default     = true
+variable "project_reuse" {
+  description = "Reuse existing project if not null. If name and number are not passed in, a data source is used."
+  type = object({
+    use_data_source = optional(bool, true)
+    attributes = optional(object({
+      name             = string
+      number           = number
+      services_enabled = optional(list(string), [])
+    }))
+  })
+  default = null
+  validation {
+    condition = (
+      try(var.project_reuse.use_data_source, null) != false ||
+      try(var.project_reuse.attributes, null) != null
+    )
+    error_message = "Reuse datasource can be disabled only if attributes are set."
+  }
 }
 
 variable "service_agents_config" {
@@ -171,7 +194,6 @@ variable "service_agents_config" {
   type = object({
     create_primary_agents = optional(bool, true)
     grant_default_roles   = optional(bool, true)
-    services_enabled      = optional(list(string), [])
   })
   default  = {}
   nullable = false
@@ -208,14 +230,24 @@ variable "shared_vpc_host_config" {
     enabled          = bool
     service_projects = optional(list(string), [])
   })
-  default = null
+  nullable = true
+  default  = null
 }
 
 variable "shared_vpc_service_config" {
   description = "Configures this project as a Shared VPC service project (mutually exclusive with shared_vpc_host_config)."
   # the list of valid service identities is in service-agents.yaml
   type = object({
-    host_project             = string
+    host_project = string
+    iam_bindings_additive = optional(map(object({
+      member = string
+      role   = string
+      condition = optional(object({
+        expression  = string
+        title       = string
+        description = optional(string)
+      }))
+    })), {})
     network_users            = optional(list(string), [])
     service_agent_iam        = optional(map(list(string)), {})
     service_agent_subnet_iam = optional(map(list(string)), {})

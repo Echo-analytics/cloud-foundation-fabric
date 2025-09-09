@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#    "click",
+#    "marko",
+# ]
+# ///
 '''Generate tables for Terraform root module files, outputs and variables.
 
 This tool generates nicely formatted Markdown tables from Terraform source
@@ -169,16 +177,19 @@ def _parse(body, enum=VAR_ENUM, re=VAR_RE, template=VAR_TEMPLATE):
         item[context].append(data)
 
 
-def create_toc(readme):
+def create_toc(readme, skip=['contents']):
   'Create a Markdown table of contents a for README.'
   doc = marko.parse(readme)
   lines = []
   headings = [x for x in doc.children if x.get_type() == 'Heading']
+  skip = skip or []
   for h in headings[1:]:
     title = h.children[0].children
     slug = title.lower().strip()
     slug = re.sub(r'[^\w\s-]', '', slug)
     slug = re.sub(r'[-\s]+', '-', slug)
+    if slug in skip:
+      continue
     link = f'- [{title}](#{slug})'
     indent = '  ' * (h.level - 2)
     lines.append(f'{indent}{link}')
@@ -512,8 +523,9 @@ def render_toc(readme, toc):
 @click.option('--replace/--no-replace', default=True)
 @click.option('--show-extra/--no-show-extra', default=False)
 @click.option('--toc-only', is_flag=True, default=False)
+@click.option('--toc-skip', multiple=True, default=['contents'])
 def main(module_path=None, exclude_file=None, files=False, replace=True,
-         show_extra=True, toc_only=False):
+         show_extra=True, toc_only=False, toc_skip=['contents']):
   'Program entry point.'
   if toc_only and module_path.endswith('.md'):
     readme_path = module_path
@@ -523,7 +535,7 @@ def main(module_path=None, exclude_file=None, files=False, replace=True,
   if not toc_only:
     doc = create_tfref(module_path, files, show_extra, exclude_file, readme)
     readme = render_tfref(readme, doc.content)
-  toc = create_toc(readme)
+  toc = create_toc(readme, toc_skip)
   readme = render_toc(readme, toc)
   if replace:
     try:

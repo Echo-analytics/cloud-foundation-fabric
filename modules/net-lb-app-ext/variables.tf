@@ -57,7 +57,7 @@ variable "forwarding_rules_config" {
   description = "The optional forwarding rules configuration."
   type = map(object({
     address     = optional(string)
-    description = optional(string)
+    description = optional(string, "Terraform managed.")
     ipv6        = optional(bool, false)
     name        = optional(string)
     ports       = optional(list(number), null)
@@ -68,13 +68,9 @@ variable "forwarding_rules_config" {
   validation {
     condition = alltrue([
       for k, v in var.forwarding_rules_config :
-      v.ports == null || (
-        var.protocol == "HTTPS" && alltrue([
-          for p in coalesce(v.ports, []) : contains([80, 8080], p)
-        ])
-      )
+      v.ports == null || (length(coalesce(v.ports, [])) <= 1)
     ])
-    error_message = "Ports can only be configured when using HTTP. Valid HTTP ports are 80 and 8080."
+    error_message = "Application Load Balancer supports at most one port per forwarding rule."
   }
 }
 
@@ -93,6 +89,8 @@ variable "group_configs" {
 variable "https_proxy_config" {
   description = "HTTPS proxy connfiguration."
   type = object({
+    name                             = optional(string)
+    description                      = optional(string, "Terraform managed.")
     certificate_manager_certificates = optional(list(string))
     certificate_map                  = optional(string)
     quic_override                    = optional(string)
@@ -117,6 +115,7 @@ variable "name" {
 variable "neg_configs" {
   description = "Optional network endpoint groups to create. Can be referenced in backends via key or outputs."
   type = map(object({
+    project_id  = optional(string)
     description = optional(string)
     cloudfunction = optional(object({
       region          = string
@@ -232,6 +231,7 @@ variable "ssl_certificates" {
       private_key = string
     })), {})
     managed_configs = optional(map(object({
+      name        = optional(string)
       domains     = list(string)
       description = optional(string)
     })), {})

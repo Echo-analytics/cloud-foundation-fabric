@@ -41,6 +41,8 @@ variable "group_configs" {
 variable "https_proxy_config" {
   description = "HTTPS proxy configuration."
   type = object({
+    name                             = optional(string)
+    description                      = optional(string, "Terraform managed.")
     certificate_manager_certificates = optional(list(string), [])
     quic_override                    = optional(string)
     ssl_policy                       = optional(string)
@@ -127,9 +129,13 @@ variable "neg_configs" {
 }
 
 variable "ports" {
-  description = "Optional ports for HTTP load balancer, valid ports are 80 and 8080."
+  description = "Optional ports for HTTP load balancer."
   type        = list(string)
   default     = null
+  validation {
+    condition     = length(coalesce(var.ports, [])) <= 1
+    error_message = "Application Load Balancer supports at most one port per forwarding rule."
+  }
 }
 
 variable "project_id" {
