@@ -107,7 +107,7 @@ variable "alerts" {
       links = optional(list(object({
         display_name = optional(string)
         url          = optional(string)
-      })))
+      })), [])
     }))
   }))
   nullable = false
