@@ -114,7 +114,7 @@ locals {
         mime_type = try(v.documentation.mime_type, null)
         subject   = try(v.documentation.subject, null)
         links = !can(v.documentation.links) ? null : [
-          for l in v.documentation.link : {
+          for l in v.documentation.links : {
             display_name = try(l.display_name, null)
             url          = try(l.url, null)
         }]
